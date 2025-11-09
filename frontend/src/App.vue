@@ -23,52 +23,51 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+  import { ref, onMounted, onUnmounted } from 'vue'
+  import { io } from 'socket.io-client'
 
-const item = ref('')
-const quantity = ref(1)
-const orders = ref([])
+  const item = ref('')
+  const quantity = ref(1)
+  const orders = ref([])
 
-// Backend-URL
-const BACKEND_URL = 'http://localhost:3000'
+  const BACKEND_URL = 'http://localhost:3000'
 
-// Bestellung senden
-const sendOrder = async () => {
+  // Socket.IO-Verbindung herstellen
+  const socket = io(BACKEND_URL)
+
+  const sendOrder = async () => {
   if (!item.value) return alert('Artikel eingeben')
-
-  try {
-    const res = await fetch(`${BACKEND_URL}/orders`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ item: item.value, quantity: quantity.value })
-    })
-    const data = await res.json()
-    console.log(data)
-    alert('Bestellung gesendet!')
-    item.value = ''
-    quantity.value = 1
-    loadOrders() // sofort aktualisieren
-  } catch (err) {
-    console.error('Fehler beim Senden:', err)
-    alert('Fehler beim Senden der Bestellung')
-  }
+  const res = await fetch(`${BACKEND_URL}/orders`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ item: item.value, quantity: quantity.value })
+})
+  const data = await res.json()
+  console.log(data)
+  item.value = ''
+  quantity.value = 1
 }
 
-// Alle Bestellungen laden
-const loadOrders = async () => {
-  try {
-    const res = await fetch(`${BACKEND_URL}/orders`)
-    orders.value = await res.json()
-  } catch (err) {
-    console.error('Fehler beim Laden:', err)
-  }
+  const loadOrders = async () => {
+  const res = await fetch(`${BACKEND_URL}/orders`)
+  orders.value = await res.json()
 }
 
-// beim Laden einmal abrufen
-onMounted(() => {
+  // 🔥 Realtime-Event empfangen
+  socket.on('new-order', (order) => {
+  console.log('Neue Bestellung empfangen:', order)
+  orders.value.push(order)
+})
+
+  onMounted(() => {
   loadOrders()
 })
+
+  onUnmounted(() => {
+  socket.disconnect()
+})
 </script>
+
 
 <style>
 button {

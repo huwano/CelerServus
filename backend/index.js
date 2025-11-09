@@ -1,22 +1,29 @@
 const express = require('express');
 const cors = require('cors');
+const http = require('http');          // <-- wichtig
+const { Server } = require('socket.io');
 
 const app = express();
+app.use(cors());
+app.use(express.json());
 
-// Middleware
-app.use(cors());           // erlaubt Cross-Origin Requests vom Frontend
-app.use(express.json());   // damit req.body JSON enthält
+// HTTP-Server aus Express-App erstellen
+const server = http.createServer(app);
 
-// temporärer Speicher für Bestellungen
+// Socket.IO-Server initialisieren
+const io = new Server(server, {
+    cors: {
+        origin: 'http://localhost:5173', // dein Frontend-Port
+        methods: ['GET', 'POST']
+    }
+});
+
 let orders = [];
 
-// Route: neue Bestellung anlegen
+// 📦 Neue Bestellung
 app.post('/orders', (req, res) => {
     const { item, quantity } = req.body;
-
-    if (!item || !quantity) {
-        return res.status(400).json({ error: 'Artikel und Anzahl erforderlich' });
-    }
+    if (!item || !quantity) return res.status(400).json({ error: 'Artikel und Anzahl erforderlich' });
 
     const order = {
         id: orders.length + 1,
@@ -24,20 +31,22 @@ app.post('/orders', (req, res) => {
         quantity,
         status: 'neu'
     };
-
     orders.push(order);
 
-    console.log('Neue Bestellung:', order);
+    // 👉 Broadcast an alle verbundenen Clients
+    io.emit('new-order', order);
+
     res.json({ message: 'Bestellung aufgenommen', order });
 });
 
-// Route: alle Bestellungen abrufen
-app.get('/orders', (req, res) => {
-    res.json(orders);
+// 📋 Alle Bestellungen
+app.get('/orders', (req, res) => res.json(orders));
+
+// Verbindung testen
+io.on('connection', (socket) => {
+    console.log('🔌 Ein Client ist verbunden');
+    socket.on('disconnect', () => console.log('❌ Client getrennt'));
 });
 
-// Server starten
 const PORT = 3000;
-app.listen(PORT, () => {
-    console.log(`✅ Backend läuft auf http://localhost:${PORT}`);
-});
+server.listen(PORT, () => console.log(`✅ Server läuft auf http://localhost:${PORT}`));
