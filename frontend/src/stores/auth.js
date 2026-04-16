@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
-
-const API = 'http://localhost:3000'
+import { api, getErrorMessage, unwrapData } from './api'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -14,35 +13,41 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     async fetchMe() {
       try {
-        const res = await fetch(`${API}/api/me`, {
-          credentials: 'include',
-        })
-        const data = await res.json()
-        this.user = res.ok ? data.user : null
+        const payload = await api('/sessions/me')
+        this.user = unwrapData(payload).user
+      } catch (error) {
+        if (error.status !== 401) {
+          throw error
+        }
+
+        this.user = null
       } finally {
         this.loaded = true
       }
     },
 
     async login(username, password) {
-      const res = await fetch(`${API}/api/login`, {
+      const payload = await api('/sessions', {
         method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       })
-      const data = await res.json()
-      if (!res.ok) throw data
-      this.user = data.user
+
+      this.user = unwrapData(payload).user
       this.loaded = true
-      return data.user
+      return this.user
     },
 
     async logout() {
-      await fetch(`${API}/api/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      })
+      try {
+        await api('/sessions/current', {
+          method: 'DELETE',
+        })
+      } catch (error) {
+        if (error.status !== 401) {
+          throw new Error(getErrorMessage(error, 'Logout fehlgeschlagen'))
+        }
+      }
+
       this.user = null
       this.loaded = true
     },

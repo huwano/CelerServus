@@ -2,31 +2,62 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import LoginView from '@/views/LoginView.vue'
 import WaiterView from '@/views/WaiterView.vue'
+import ThekeView from '@/views/ThekeView.vue'
 import KitchenView from '@/views/KitchenView.vue'
 import AdminView from '@/views/AdminView.vue'
 import { useAuthStore } from '@/stores/auth'
+import { homeByRole } from '@/lib/home-by-role'
 
 const routes = [
-  { path: '/login', name: 'login', component: LoginView },
+  {
+    path: '/login',
+    name: 'login',
+    component: LoginView,
+    meta: { public: true, title: 'Willkommen zurück' },
+  },
 
   {
-    path: '/waiter',
-    name: 'waiter',
+    path: '/bedienung',
+    name: 'bedienung',
     component: WaiterView,
-    meta: { requiresAuth: true, roles: ['waiter'] },
+    meta: {
+      requiresAuth: true,
+      roles: ['bedienung'],
+      title: 'Service Hub',
+    },
   },
   {
-    path: '/kitchen',
-    name: 'kitchen',
+    path: '/theke',
+    name: 'theke',
+    component: ThekeView,
+    meta: {
+      requiresAuth: true,
+      roles: ['theke'],
+      title: 'Getränke-Board',
+    },
+  },
+  {
+    path: '/kueche',
+    name: 'kueche',
     component: KitchenView,
-    meta: { requiresAuth: true, roles: ['kitchen'] },
+    meta: {
+      requiresAuth: true,
+      roles: ['kueche'],
+      title: 'Küchenpass',
+    },
   },
   {
     path: '/admin',
     name: 'admin',
     component: AdminView,
-    meta: { requiresAuth: true, roles: ['admin'] },
+    meta: {
+      requiresAuth: true,
+      roles: ['admin'],
+      title: 'Leitstand',
+    },
   },
+  { path: '/waiter', redirect: '/bedienung' },
+  { path: '/kitchen', redirect: '/kueche' },
 
   { path: '/', redirect: '/login' },
 ]
@@ -35,13 +66,6 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 })
-
-function homeByRole(role) {
-  if (role === 'waiter') return '/waiter'
-  if (role === 'kitchen') return '/kitchen'
-  if (role === 'admin') return '/admin'
-  return '/login'
-}
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
