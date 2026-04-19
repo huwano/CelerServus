@@ -99,3 +99,41 @@ test('createOrder publishes an order change event after success', async () => {
   assert.equal(publishedChanges[0].type, 'order_created');
   assert.match(publishedChanges[0].orderId, /^order-/);
 });
+
+test('cancelOrderItem responds with 200 and publishes item_cancelled event', async () => {
+  const publishedChanges = [];
+  const controller = createOrdersControllerWithService({
+    publishOrderChanged(change) {
+      publishedChanges.push(change);
+    },
+  });
+
+  const createReq = {
+    user: { id: 'waiter-1', role: ROLES.BEDIENUNG },
+    body: {
+      tableNumber: '12',
+      items: [{ name: 'Wasser', quantity: 1, category: ITEM_CATEGORIES.DRINK }],
+    },
+  };
+  const createRes = createMockResponse();
+  await controller.createOrder(createReq, createRes, () => {});
+
+  const itemId = createRes.body.data.items[0].id;
+  const cancelReq = {
+    user: { id: 'waiter-1', role: ROLES.BEDIENUNG },
+    params: {
+      orderId: createRes.body.data.id,
+      itemId,
+    },
+  };
+  const cancelRes = createMockResponse();
+  const { calls, next } = createNextCollector();
+
+  await controller.cancelOrderItem(cancelReq, cancelRes, next);
+
+  assert.equal(calls.length, 0);
+  assert.equal(cancelRes.statusCode, 200);
+  assert.equal(cancelRes.body.data.status, 'cancelled');
+  assert.equal(publishedChanges.at(-1).type, 'item_cancelled');
+});
+

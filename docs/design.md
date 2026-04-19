@@ -35,3 +35,9 @@ Du entwickelst eine hochfrequente Mobile-POS-Web-App für ein Weinfest (Ansichte
    Visuelle Hierarchie: Nur die allerwichtigste Aktion auf einem Screen (z.B. "Bestellung abschicken" oder "Bon fertig") bekommt eine dominante, vollflächige Signalfarbe. Alles andere bleibt neutral (Grau/Schwarz/Weiß) oder ist nur umrandet (Outline).
 
 Prüfe jeden generierten Code gegen diese 5 Regeln. Wenn dein Layout viel leeren Platz, große Texte oder Dropdowns enthält, hast du versagt. Optimiere auf maximale Informationsdichte bei gleichzeitiger Einhand-Bedienbarkeit.
+
+admin1
+
+Pfand system 
+insgesammtes geld also abrechnungssystem mit wievie wird ggeben / wechsel geld rechner 
+dinge löschen 

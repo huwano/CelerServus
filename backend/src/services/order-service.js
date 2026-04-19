@@ -106,6 +106,22 @@ function assertCanUpdateItemStatus(actor, item) {
   throw new HttpError(403, 'forbidden', 'You are not allowed to update this item');
 }
 
+function assertCanCancelOrderItem(actor, order, item) {
+  if (isAdmin(actor)) {
+    return;
+  }
+
+  if (
+    actor.role === ROLES.BEDIENUNG &&
+    isOwner(actor, order) &&
+    item.status === ORDER_ITEM_STATUSES.NEW
+  ) {
+    return;
+  }
+
+  throw new HttpError(403, 'forbidden', 'You are not allowed to cancel this item');
+}
+
 function assertValidStatusTransition(currentStatus, nextStatus, actor) {
   const allowedStatuses = new Set(Object.values(ORDER_ITEM_STATUSES));
 
@@ -337,6 +353,32 @@ class OrderService {
     assertValidStatusTransition(item.status, normalizedPayload.status, actor);
 
     item.status = normalizedPayload.status;
+    order.status = deriveOrderStatus(order.items);
+
+    const savedOrder = await this.orderRepository.save(order);
+    return savedOrder.items.find((entry) => entry.id === itemId);
+  }
+
+  async cancelOrderItem(actor, orderId, itemId) {
+    const order = await this.orderRepository.findById(orderId);
+
+    if (!order) {
+      throw new HttpError(404, 'order_not_found', 'Order not found');
+    }
+
+    const item = order.items.find((entry) => entry.id === itemId);
+
+    if (!item) {
+      throw new HttpError(404, 'order_item_not_found', 'Order item not found');
+    }
+
+    assertCanCancelOrderItem(actor, order, item);
+
+    if (item.status === ORDER_ITEM_STATUSES.CANCELLED) {
+      throw new HttpError(409, 'invalid_transition', 'Item is already cancelled');
+    }
+
+    item.status = ORDER_ITEM_STATUSES.CANCELLED;
     order.status = deriveOrderStatus(order.items);
 
     const savedOrder = await this.orderRepository.save(order);

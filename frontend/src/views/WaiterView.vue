@@ -120,21 +120,92 @@
                 <strong>{{ draftActionLabel }}</strong>
                 <span v-if="draftActionHint" class="muted">{{ draftActionHint }}</span>
               </div>
+
+              <div v-if="draftItemsCount > 0" class="draft-overview">
+                <button
+                  :aria-expanded="draftOverviewOpen"
+                  class="draft-overview__toggle"
+                  type="button"
+                  @click="draftOverviewOpen = !draftOverviewOpen"
+                >
+                  <span>{{ draftItemsCount }} Positionen</span>
+                  <span aria-hidden="true">{{ draftOverviewOpen ? '▾' : '▸' }}</span>
+                </button>
+
+                <ul v-if="draftOverviewOpen" class="draft-overview__list">
+                  <li v-for="draftItem in draftItems" :key="draftItem.id" class="draft-overview__item">
+                    <div class="draft-overview__left">
+                      <BaseButton
+                        aria-label="Position komplett loeschen"
+                        class="draft-overview__action"
+                        type="button"
+                        variant="outline"
+                        @click="removeDraftItem(draftItem.id)"
+                      >
+                        X
+                      </BaseButton>
+                      <span>{{ draftItem.quantity }} x {{ draftItem.name }}</span>
+                    </div>
+                    <div class="draft-overview__actions draft-overview__qty-actions">
+                      <BaseButton
+                        aria-label="Menge reduzieren"
+                        class="draft-overview__action"
+                        type="button"
+                        variant="outline"
+                        @click="decrementDraftItem(draftItem.id)"
+                      >
+                        -
+                      </BaseButton>
+                      <BaseButton
+                        aria-label="Menge erhoehen"
+                        class="draft-overview__action"
+                        type="button"
+                        variant="outline"
+                        @click="incrementDraftItem(draftItem.id)"
+                      >
+                        +
+                      </BaseButton>
+                    </div>
+                  </li>
+                </ul>
+
+                <div v-if="draftOverviewOpen" class="draft-overview__totals">
+                  <span>Warenwert {{ formatCents(draftTotals.itemsCents) }}</span>
+                  <span>Pfand {{ formatCents(draftTotals.depositCents) }}</span>
+                  <strong>Gesamt {{ formatCents(draftTotals.totalCents) }}</strong>
+                </div>
+
+                <div v-if="draftOverviewOpen" class="draft-overview__cash">
+                  <button
+                    :aria-expanded="showCashInput"
+                    class="draft-overview__cash-toggle"
+                    type="button"
+                    @click="showCashInput = !showCashInput"
+                  >
+                    Wechsel
+                  </button>
+                  <label v-if="showCashInput" class="draft-overview__cash-input">
+                    <span class="sr-only">Gegeben</span>
+                    <input v-model="paidAmountInput" inputmode="decimal" placeholder="Gegeben" />
+                  </label>
+                  <span v-if="showCashInput" class="draft-overview__cash-result">
+                    Rueckgeld {{ formatCents(changeSummary.changeCents) }}
+                  </span>
+                </div>
+              </div>
             </template>
 
             <BaseButton
-              v-if="hasDraftContent"
               block
               :disabled="!hasDraftContent || submitting"
               type="button"
-              variant="outline"
+              variant="danger"
               @click="resetOrderForm"
             >
               Leeren
             </BaseButton>
 
             <BaseButton
-              v-if="canSubmitOrder"
               block
               :disabled="!canSubmitOrder || submitting"
               type="submit"
@@ -188,7 +259,21 @@
                   <strong>{{ orderItem.quantity }} x {{ orderItem.name }}</strong>
                   <p class="data-card__meta">{{ categoryLabel(orderItem.category) }}</p>
                 </div>
-                <span class="soft-pill">{{ statusLabel(orderItem.status) }}</span>
+                <div class="inline-item__actions">
+                  <span class="soft-pill">{{ statusLabel(orderItem.status) }}</span>
+                  <BaseButton
+                    v-if="canCancelSubmittedItem(orderItem)"
+                    :disabled="cancellingItemId === orderItem.id"
+                    aria-label="Position stornieren"
+                    class="waiter-icon-btn"
+                    title="Position stornieren"
+                    type="button"
+                    variant="outline"
+                    @click="cancelSubmittedOrderItem(order.id, orderItem.id)"
+                  >
+                    -
+                  </BaseButton>
+                </div>
               </li>
             </ul>
 
@@ -266,16 +351,22 @@ import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import CatalogItemGrid from '@/components/app/CatalogItemGrid.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BottomActionBar from '@/components/ui/BottomActionBar.vue'
+import { calculateChange, calculateDraftTotals, finalizeDraftTotals, formatCents } from '@/lib/checkout'
 import { buildOrderPayload } from '@/lib/order-payload'
 import { api, getErrorMessage, unwrapData } from '@/stores/api'
+import { useAuthStore } from '@/stores/auth'
 import { useCatalogStore } from '@/stores/catalog'
 import { subscribeToOrderChanges } from '@/realtime/orders'
 
+const authStore = useAuthStore()
 const catalogStore = useCatalogStore()
 const tableNumber = ref('')
 const itemSearch = ref('')
 const showSearch = ref(false)
 const showInitialNote = ref(false)
+const draftOverviewOpen = ref(false)
+const showCashInput = ref(false)
+const paidAmountInput = ref('')
 const activeSection = ref('catalog')
 const category = ref(catalogStore.defaultCategoryKey)
 const initialNote = ref('')
@@ -292,6 +383,7 @@ const messageDraftByOrderId = reactive({})
 const messageTargetByOrderId = reactive({})
 const messageComposerOpenByOrderId = reactive({})
 const messageErrorByOrderId = reactive({})
+const cancellingItemId = ref('')
 const messageTargetOptions = [
   { value: 'both', label: 'Theke + Kueche' },
   { value: 'theke', label: 'Theke' },
@@ -307,6 +399,16 @@ const fallbackPriceByItemKey = {
   bratwurst: '5,90 EUR',
   kaesebrot: '4,20 EUR',
 }
+const fallbackPricingByItemKey = {
+  'riesling-schorle': { priceCents: 490, depositCents: 200 },
+  apfelschorle: { priceCents: 380, depositCents: 200 },
+  wasser: { priceCents: 290, depositCents: 200 },
+  sekt: { priceCents: 540, depositCents: 200 },
+  'flammkuchen-klassik': { priceCents: 980, depositCents: 0 },
+  pommes: { priceCents: 470, depositCents: 0 },
+  bratwurst: { priceCents: 590, depositCents: 0 },
+  kaesebrot: { priceCents: 420, depositCents: 0 },
+}
 
 const filteredCatalogItems = computed(() =>
   catalogStore.getItemsForWaiter(category.value, itemSearch.value),
@@ -318,6 +420,20 @@ const displayCatalogItems = computed(() =>
     priceLabel: item.priceLabel || fallbackPriceByItemKey[item.key] || '--',
   })),
 )
+const draftTotals = computed(() =>
+  finalizeDraftTotals(calculateDraftTotals(draftItems.value, fallbackPricingByItemKey)),
+)
+const normalizedPaidCents = computed(() => {
+  const normalizedInput = String(paidAmountInput.value || '').trim().replace(',', '.')
+  const paidAmount = Number.parseFloat(normalizedInput)
+  if (!Number.isFinite(paidAmount) || paidAmount < 0) {
+    return 0
+  }
+
+  return Math.round(paidAmount * 100)
+})
+const changeSummary = computed(() => calculateChange(draftTotals.value.totalCents, normalizedPaidCents.value))
+const canCancelStatusSet = new Set(['new'])
 const draftItemsCount = computed(() => draftItems.value.length)
 const categoryOptions = computed(() => catalogStore.categoryOptions)
 const canSubmitOrder = computed(() => draftItems.value.length > 0)
@@ -331,6 +447,7 @@ const draftActionLabel = computed(() =>
   draftItemsCount.value > 0 ? `${draftItemsCount.value} bereit` : 'Leer',
 )
 const draftActionHint = computed(() => (canSubmitOrder.value ? 'Bereit' : ''))
+const isAdmin = computed(() => authStore.role === 'admin')
 
 function categoryLabel(value) {
   return catalogStore.getCategoryLabel(value)
@@ -354,6 +471,14 @@ function statusTone(value) {
   if (value === 'cancelled') return 'danger'
   if (value === 'open' || value === 'new' || value === 'in_progress') return 'warning'
   return 'neutral'
+}
+
+function canCancelSubmittedItem(orderItem) {
+  if (isAdmin.value) {
+    return ['new', 'in_progress', 'ready'].includes(orderItem.status)
+  }
+
+  return canCancelStatusSet.has(orderItem.status)
 }
 
 function targetLabel(targetStations) {
@@ -382,6 +507,9 @@ function resetOrderForm() {
   tableNumber.value = ''
   initialNote.value = ''
   draftItems.value = []
+  draftOverviewOpen.value = false
+  showCashInput.value = false
+  paidAmountInput.value = ''
   tableError.value = false
   resetItemInputs()
 }
@@ -423,27 +551,60 @@ function addCatalogItemByKey(itemKey) {
 
   try {
     const catalogItem = catalogStore.getItemByKey(itemKey)
-    const existingIndex = draftItems.value.findIndex((item) => item.catalogItemKey === itemKey)
+    const existingItem = draftItems.value.find((item) => item.catalogItemKey === itemKey)
 
-    if (existingIndex >= 0) {
-      const existingItem = draftItems.value[existingIndex]
-      const updatedItem = buildDraftItem(catalogItem, existingItem.quantity + 1)
-      updatedItem.id = existingItem.id
-
-      draftItems.value = draftItems.value.map((item, index) =>
-        index === existingIndex ? updatedItem : item,
-      )
-      return
+    if (existingItem) {
+      changeDraftItemQuantity(existingItem.id, 1)
+    } else {
+      draftItems.value = [...draftItems.value, buildDraftItem(catalogItem)]
     }
 
-    draftItems.value = [...draftItems.value, buildDraftItem(catalogItem)]
+    draftOverviewOpen.value = true
   } catch (error) {
     formError.value = error.message
   }
 }
 
+function changeDraftItemQuantity(itemId, delta) {
+  if (!Number.isInteger(delta) || delta === 0) {
+    return
+  }
+
+  const draftItem = draftItems.value.find((item) => item.id === itemId)
+  if (!draftItem) {
+    return
+  }
+
+  const nextQuantity = draftItem.quantity + delta
+
+  if (nextQuantity <= 0) {
+    removeDraftItem(itemId)
+    return
+  }
+
+  draftItems.value = draftItems.value.map((item) =>
+    item.id === itemId
+      ? {
+          ...item,
+          quantity: nextQuantity,
+        }
+      : item,
+  )
+}
+
+function incrementDraftItem(itemId) {
+  changeDraftItemQuantity(itemId, 1)
+}
+
+function decrementDraftItem(itemId) {
+  changeDraftItemQuantity(itemId, -1)
+}
+
 function removeDraftItem(itemId) {
   draftItems.value = draftItems.value.filter((item) => item.id !== itemId)
+  if (draftItems.value.length === 0) {
+    draftOverviewOpen.value = false
+  }
 }
 
 function normalizeMessageTarget(orderId) {
@@ -544,6 +705,21 @@ async function sendMessage(orderId) {
     messageErrorByOrderId[orderId] = getErrorMessage(error, 'Nachricht konnte nicht gesendet werden')
   } finally {
     sendingMessageOrderId.value = ''
+  }
+}
+
+async function cancelSubmittedOrderItem(orderId, itemId) {
+  cancellingItemId.value = itemId
+
+  try {
+    await api(`/orders/${orderId}/items/${itemId}`, {
+      method: 'DELETE',
+    })
+    await loadOrders()
+  } catch (error) {
+    loadError.value = getErrorMessage(error, 'Position konnte nicht storniert werden')
+  } finally {
+    cancellingItemId.value = ''
   }
 }
 
@@ -757,6 +933,102 @@ onUnmounted(() => {
   align-items: center;
 }
 
+.draft-overview {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.draft-overview__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 1.9rem;
+  padding: 0.15rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  color: var(--ink-1);
+}
+
+.draft-overview__list {
+  display: grid;
+  gap: 0.2rem;
+  max-height: min(40vh, 14rem);
+  overflow-y: auto;
+}
+
+.draft-overview__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0.15rem 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+}
+
+.draft-overview__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.draft-overview__left {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.draft-overview__qty-actions {
+  gap: 0.3rem;
+  margin-left: 0.35rem;
+}
+
+.draft-overview__action {
+  min-width: 1.9rem;
+  min-height: 1.9rem;
+  padding: 0;
+}
+
+.draft-overview__totals {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.15rem 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+}
+
+.draft-overview__cash {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.draft-overview__cash-toggle {
+  min-height: 1.8rem;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+
+.draft-overview__cash-input {
+  flex: 1;
+}
+
+.draft-overview__cash-input input {
+  min-height: 1.8rem;
+  padding: 0.2rem 0.45rem;
+}
+
+.draft-overview__cash-result {
+  font-weight: var(--font-weight-bold);
+}
+
 .waiter-icon-btn {
   min-width: 2rem;
   min-height: 2rem;
@@ -795,6 +1067,16 @@ onUnmounted(() => {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent-strong);
+}
+
+.waiter-order-form :deep(.bottom-action-bar__actions) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.inline-item__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 @media (min-width: 960px) {

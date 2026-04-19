@@ -72,6 +72,19 @@ function createOrdersController({
         return next(error);
       }
     },
+
+    async cancelOrderItem(req, res, next) {
+      try {
+        const item = await orderService.cancelOrderItem(req.user, req.params.orderId, req.params.itemId);
+        notifyOrderChanged(orderEvents, {
+          orderId: req.params.orderId,
+          type: 'item_cancelled',
+        });
+        return res.json({ data: item });
+      } catch (error) {
+        return next(error);
+      }
+    },
   };
 }
 

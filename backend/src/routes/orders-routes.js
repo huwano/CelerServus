@@ -11,6 +11,7 @@ function createOrdersRouter({ ordersController }) {
   router.post('/orders', ordersController.createOrder);
   router.post('/orders/:orderId/messages', ordersController.addOrderMessage);
   router.patch('/orders/:orderId/items/:itemId', ordersController.updateOrderItem);
+  router.delete('/orders/:orderId/items/:itemId', ordersController.cancelOrderItem);
 
   return router;
 }

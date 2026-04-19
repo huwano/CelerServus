@@ -122,6 +122,54 @@ test('only the matching station can update an item status', async () => {
   );
 });
 
+test('bedienung can cancel own new item before processing starts', async () => {
+  const service = createServiceWithSeed();
+
+  const item = await service.cancelOrderItem(
+    { id: 'waiter-1', role: ROLES.BEDIENUNG },
+    'order-1',
+    'item-1',
+  );
+
+  assert.equal(item.status, ORDER_ITEM_STATUSES.CANCELLED);
+});
+
+test('bedienung cannot cancel own item once it is in progress', async () => {
+  const service = createServiceWithSeed();
+
+  await service.updateOrderItemStatus(
+    { id: 'station-kueche', role: ROLES.KUECHE },
+    'order-1',
+    'item-2',
+    { status: ORDER_ITEM_STATUSES.IN_PROGRESS },
+  );
+
+  await assert.rejects(
+    () =>
+      service.cancelOrderItem(
+        { id: 'waiter-1', role: ROLES.BEDIENUNG },
+        'order-1',
+        'item-2',
+      ),
+    /not allowed to cancel this item/,
+  );
+});
+
+test('admin can cancel item that is already in progress', async () => {
+  const service = createServiceWithSeed();
+
+  await service.updateOrderItemStatus(
+    { id: 'station-kueche', role: ROLES.KUECHE },
+    'order-1',
+    'item-2',
+    { status: ORDER_ITEM_STATUSES.IN_PROGRESS },
+  );
+
+  const item = await service.cancelOrderItem({ id: 'admin-1', role: ROLES.ADMIN }, 'order-1', 'item-2');
+
+  assert.equal(item.status, ORDER_ITEM_STATUSES.CANCELLED);
+});
+
 test('bedienung can add a station-specific message', async () => {
   const service = createServiceWithSeed();
 
