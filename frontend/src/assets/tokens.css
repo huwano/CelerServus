@@ -1,0 +1,143 @@
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-bg: #121417;
+  --color-bg-elevated: #181d22;
+  --color-surface: #1d242b;
+  --color-surface-strong: #27303a;
+  --color-surface-muted: #161b20;
+  --color-text: #f4f1ea;
+  --color-text-muted: #d1c9bd;
+  --color-text-dim: #9f9a91;
+  --color-border: #38424d;
+  --color-border-strong: #4a5664;
+  --color-accent: #8f1d2c;
+  --color-accent-strong: #741723;
+  --color-accent-contrast: #ffffff;
+  --color-success: #1fbf5b;
+  --color-success-strong: #179447;
+  --color-success-contrast: #08140c;
+  --color-success-soft: rgba(31, 191, 91, 0.2);
+  --color-warning: #ffb000;
+  --color-warning-strong: #d49100;
+  --color-warning-contrast: #1a1300;
+  --color-warning-soft: rgba(255, 176, 0, 0.22);
+  --color-danger: #e53935;
+  --color-danger-strong: #b82c29;
+  --color-danger-contrast: #ffffff;
+  --color-danger-soft: rgba(229, 57, 53, 0.22);
+  --color-focus: #ffcf33;
+
+  --font-family-base: Inter, Roboto, 'SF Pro Text', 'Segoe UI', sans-serif;
+  --font-weight-regular: 400;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  --touch-min: 60px;
+  --bottom-bar-height: 84px;
+
+  --bg-1: var(--color-bg);
+  --bg-2: var(--color-bg-elevated);
+  --ink-1: var(--color-text);
+  --ink-2: var(--color-text-muted);
+  --ink-3: var(--color-text-dim);
+  --line: var(--color-border);
+  --surface: var(--color-surface);
+  --surface-strong: var(--color-surface-strong);
+  --surface-soft: var(--color-surface-muted);
+  --accent: var(--color-accent);
+  --accent-strong: var(--color-accent-strong);
+  --accent-soft: rgba(143, 29, 44, 0.22);
+  --success: var(--color-success);
+  --success-soft: var(--color-success-soft);
+  --warning: var(--color-warning);
+  --warning-soft: var(--color-warning-soft);
+  --danger: var(--color-danger);
+  --danger-soft: var(--color-danger-soft);
+  --shadow-md: none;
+  --shadow-lg: none;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --color-bg: #f4efe6;
+  --color-bg-elevated: #fffaf2;
+  --color-surface: #fffdf8;
+  --color-surface-strong: #f0e8dc;
+  --color-surface-muted: #e7ddd0;
+  --color-text: #1f252b;
+  --color-text-muted: #414b55;
+  --color-text-dim: #6d7780;
+  --color-border: #c9beb0;
+  --color-border-strong: #ab9f92;
+  --color-accent: #8f1d2c;
+  --color-accent-strong: #741723;
+  --color-accent-contrast: #ffffff;
+  --color-success: #178f45;
+  --color-success-strong: #126c34;
+  --color-success-contrast: #ffffff;
+  --color-success-soft: rgba(23, 143, 69, 0.14);
+  --color-warning: #d49100;
+  --color-warning-strong: #a06f00;
+  --color-warning-contrast: #181200;
+  --color-warning-soft: rgba(212, 145, 0, 0.16);
+  --color-danger: #c9312d;
+  --color-danger-strong: #9f2421;
+  --color-danger-contrast: #ffffff;
+  --color-danger-soft: rgba(201, 49, 45, 0.15);
+  --color-focus: #b77900;
+
+  --font-family-base: Inter, Roboto, 'SF Pro Text', 'Segoe UI', sans-serif;
+  --font-weight-regular: 400;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  --touch-min: 60px;
+  --bottom-bar-height: 84px;
+
+  --bg-1: var(--color-bg);
+  --bg-2: var(--color-bg-elevated);
+  --ink-1: var(--color-text);
+  --ink-2: var(--color-text-muted);
+  --ink-3: var(--color-text-dim);
+  --line: var(--color-border);
+  --surface: var(--color-surface);
+  --surface-strong: var(--color-surface-strong);
+  --surface-soft: var(--color-surface-muted);
+  --accent: var(--color-accent);
+  --accent-strong: var(--color-accent-strong);
+  --accent-soft: rgba(143, 29, 44, 0.14);
+  --success: var(--color-success);
+  --success-soft: var(--color-success-soft);
+  --warning: var(--color-warning);
+  --warning-soft: var(--color-warning-soft);
+  --danger: var(--color-danger);
+  --danger-soft: var(--color-danger-soft);
+  --shadow-md: none;
+  --shadow-lg: none;
+}

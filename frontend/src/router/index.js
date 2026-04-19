@@ -6,6 +6,7 @@ import ThekeView from '@/views/ThekeView.vue'
 import KitchenView from '@/views/KitchenView.vue'
 import AdminView from '@/views/AdminView.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useCatalogStore } from '@/stores/catalog'
 import { homeByRole } from '@/lib/home-by-role'
 
 const routes = [
@@ -69,6 +70,7 @@ const router = createRouter({
 
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
+  const catalogStore = useCatalogStore()
 
   // 1) Einmalig User/Session vom Backend holen (wichtig für Refresh)
   if (!auth.loaded) {
@@ -83,6 +85,10 @@ router.beforeEach(async (to) => {
   // 3) Auth-Check
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } }
+  }
+
+  if (to.meta.requiresAuth && auth.isAuthenticated && !catalogStore.loaded) {
+    await catalogStore.fetchCatalog()
   }
 
   // 4) Role-Check (wenn roles definiert sind)

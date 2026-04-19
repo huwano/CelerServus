@@ -13,7 +13,7 @@ function createOrdersControllerWithService(orderEvents = { publishOrderChanged()
   return createOrdersController({ orderService: service, orderEvents });
 }
 
-test('createOrder responds with 201 and wraps the order in a data envelope', () => {
+test('createOrder responds with 201 and wraps the order in a data envelope', async () => {
   const controller = createOrdersControllerWithService();
   const req = {
     user: { id: 'waiter-1', role: ROLES.BEDIENUNG },
@@ -26,7 +26,7 @@ test('createOrder responds with 201 and wraps the order in a data envelope', () 
   const res = createMockResponse();
   const { calls, next } = createNextCollector();
 
-  controller.createOrder(req, res, next);
+  await controller.createOrder(req, res, next);
 
   assert.equal(calls.length, 0);
   assert.equal(res.statusCode, 201);
@@ -34,7 +34,7 @@ test('createOrder responds with 201 and wraps the order in a data envelope', () 
   assert.equal(Array.isArray(res.body.data.items), true);
 });
 
-test('listOrders responds with 200 and a plural data payload', () => {
+test('listOrders responds with 200 and a plural data payload', async () => {
   const controller = createOrdersControllerWithService();
   const createReq = {
     user: { id: 'waiter-1', role: ROLES.BEDIENUNG },
@@ -44,13 +44,13 @@ test('listOrders responds with 200 and a plural data payload', () => {
     },
   };
   const createRes = createMockResponse();
-  controller.createOrder(createReq, createRes, () => {});
+  await controller.createOrder(createReq, createRes, () => {});
 
   const req = { user: { id: 'waiter-1', role: ROLES.BEDIENUNG } };
   const res = createMockResponse();
   const { calls, next } = createNextCollector();
 
-  controller.listOrders(req, res, next);
+  await controller.listOrders(req, res, next);
 
   assert.equal(calls.length, 0);
   assert.equal(res.statusCode, 200);
@@ -58,7 +58,7 @@ test('listOrders responds with 200 and a plural data payload', () => {
   assert.equal(res.body.data.length, 1);
 });
 
-test('createOrder forwards validation errors to next', () => {
+test('createOrder forwards validation errors to next', async () => {
   const controller = createOrdersControllerWithService();
   const req = {
     user: { id: 'waiter-1', role: ROLES.BEDIENUNG },
@@ -70,14 +70,14 @@ test('createOrder forwards validation errors to next', () => {
   const res = createMockResponse();
   const { calls, next } = createNextCollector();
 
-  controller.createOrder(req, res, next);
+  await controller.createOrder(req, res, next);
 
   assert.equal(calls.length, 1);
   assert.equal(calls[0].statusCode, 400);
   assert.equal(calls[0].code, 'validation_error');
 });
 
-test('createOrder publishes an order change event after success', () => {
+test('createOrder publishes an order change event after success', async () => {
   const publishedChanges = [];
   const controller = createOrdersControllerWithService({
     publishOrderChanged(change) {
@@ -93,7 +93,7 @@ test('createOrder publishes an order change event after success', () => {
   };
   const res = createMockResponse();
 
-  controller.createOrder(req, res, () => {});
+  await controller.createOrder(req, res, () => {});
 
   assert.equal(publishedChanges.length, 1);
   assert.equal(publishedChanges[0].type, 'order_created');

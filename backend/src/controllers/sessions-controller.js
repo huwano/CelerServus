@@ -9,9 +9,9 @@ function serializeUser(user, { legacyRole = false } = {}) {
 
 function createSessionsController({ sessionService }) {
   return {
-    createSession(req, res, next) {
+    async createSession(req, res, next) {
       try {
-        const user = sessionService.authenticate(req.body);
+        const user = await sessionService.authenticate(req.body);
         req.session.user = user;
 
         return res.status(201).json({ data: { user } });
@@ -30,9 +30,9 @@ function createSessionsController({ sessionService }) {
       });
     },
 
-    createLegacySession(req, res, next) {
+    async createLegacySession(req, res, next) {
       try {
-        const user = sessionService.authenticate(req.body);
+        const user = await sessionService.authenticate(req.body);
         req.session.user = user;
 
         return res.json({ user: serializeUser(user, { legacyRole: true }) });

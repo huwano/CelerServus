@@ -1,96 +1,68 @@
 <template>
-  <div class="view-shell">
-    <section class="hero-panel surface">
+  <div class="view-shell view-shell--with-bottom-bar">
+    <section class="list-panel surface station-board__header">
       <div>
         <p class="eyebrow">{{ eyebrow }}</p>
-        <h1 class="hero-title">{{ title }}</h1>
-        <p class="hero-copy">{{ description }}</p>
+        <h1 class="panel-title">{{ title }}</h1>
+        <p class="muted">{{ description }}</p>
       </div>
-
-      <div class="metrics-grid">
-        <MetricCard
-          hint="sichtbar für diese Station"
-          label="Orders im Blick"
-          :value="orders.length"
-          tone="accent"
-        />
-        <MetricCard
-          hint="noch nicht gestartet"
-          label="Neu"
-          :value="newItemsCount"
-          tone="warning"
-        />
-        <MetricCard hint="bereit zum Abholen" label="Fertig" :value="readyItemsCount" />
+      <div class="station-board__header-meta">
+        <span class="soft-pill">{{ orders.length }} Orders</span>
+        <BaseButton variant="ghost" @click="loadOrders">Aktualisieren</BaseButton>
       </div>
     </section>
 
-    <section class="list-panel surface">
-      <div class="panel-head">
-        <div>
-          <p class="eyebrow">Stationsliste</p>
-          <h2 class="panel-title">Aktive Positionen</h2>
-        </div>
-        <button class="button--ghost" @click="loadOrders">Aktualisieren</button>
-      </div>
+    <p v-if="loading" class="empty-state">Lade Bestellungen...</p>
+    <p v-else-if="error" class="error-text">{{ error }}</p>
+    <p v-else-if="tickets.length === 0" class="empty-state">Keine Tickets für diese Station.</p>
 
-      <p v-if="loading" class="empty-state">Lade Bestellungen...</p>
-      <p v-else-if="error" class="error-text">{{ error }}</p>
-      <p v-else-if="orders.length === 0" class="empty-state">
-        Keine Bestellungen für diese Station.
-      </p>
+    <div v-else class="station-board__lanes">
+      <section v-for="lane in lanes" :key="lane.key" class="surface station-board__lane">
+        <header class="station-board__lane-head">
+          <h2 class="panel-title">{{ lane.label }}</h2>
+          <span class="status-pill" :data-tone="lane.tone">{{ lane.items.length }}</span>
+        </header>
 
-      <ul v-else class="data-list">
-        <li v-for="order in orders" :key="order.id" class="data-card">
-          <div class="row-spread">
-            <div>
-              <p class="data-card__title">Tisch {{ order.tableNumber }}</p>
-              <p class="data-card__meta">Bestellung {{ order.id }}</p>
-            </div>
-            <span class="status-pill" :data-tone="statusTone(order.status)">
-              {{ statusLabel(order.status) }}
-            </span>
-          </div>
+        <p v-if="lane.items.length === 0" class="empty-state">Aktuell leer.</p>
 
-          <ul class="inline-list">
-            <li v-for="item in order.items" :key="item.id" class="inline-item">
+        <ul v-else class="station-board__ticket-list">
+          <li v-for="ticket in lane.items" :key="ticket.id" class="station-board__ticket surface surface--soft">
+            <div class="row-spread">
               <div>
-                <strong>{{ item.quantity }} x {{ item.name }}</strong>
-                <p class="data-card__meta">{{ statusLabel(item.status) }}</p>
+                <p class="data-card__title">Tisch {{ ticket.tableNumber }}</p>
+                <p class="data-card__meta">{{ ticket.waitLabel }} · Bestellung {{ ticket.orderId }}</p>
               </div>
+              <span class="status-pill" :data-tone="statusTone(ticket.status)">
+                {{ statusLabel(ticket.status) }}
+              </span>
+            </div>
 
-              <button
-                v-if="nextStatus(item.status)"
-                :disabled="savingItemId === item.id"
-                @click="advanceItem(order.id, item.id, nextStatus(item.status))"
+            <p class="station-board__item-line">
+              <strong>{{ ticket.quantity }} x {{ ticket.name }}</strong>
+            </p>
+
+            <p v-if="ticket.lastMessage" class="data-card__meta">Hinweis: {{ ticket.lastMessage }}</p>
+
+            <div class="station-board__actions">
+              <BaseButton
+                v-if="nextStatus(ticket.status)"
+                block
+                :disabled="savingItemId === ticket.id"
+                @click="advanceItem(ticket.orderId, ticket.id, nextStatus(ticket.status))"
               >
-                {{ actionLabel(item.status) }}
-              </button>
-            </li>
-          </ul>
-
-          <div v-if="order.messages.length" class="surface surface--soft form-panel">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">Nachrichten</p>
-                <h3 class="panel-title">Für diese Station sichtbar</h3>
-              </div>
+                {{ actionLabel(ticket.status) }}
+              </BaseButton>
             </div>
-
-            <ul class="data-list">
-              <li v-for="message in order.messages" :key="message.id" class="message-card">
-                <p>{{ message.message }}</p>
-              </li>
-            </ul>
-          </div>
-        </li>
-      </ul>
-    </section>
+          </li>
+        </ul>
+      </section>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import MetricCard from '@/components/MetricCard.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
 import { api, getErrorMessage, unwrapData } from '@/stores/api'
 import { subscribeToOrderChanges } from '@/realtime/orders'
 
@@ -114,13 +86,44 @@ const error = ref('')
 const loading = ref(false)
 const savingItemId = ref('')
 
-const stationItems = computed(() => orders.value.flatMap((order) => order.items))
-const newItemsCount = computed(
-  () => stationItems.value.filter((item) => item.status === 'new').length,
+const tickets = computed(() =>
+  orders.value.flatMap((order) => {
+    const latestMessage = Array.isArray(order.messages) && order.messages.length
+      ? order.messages[order.messages.length - 1].message
+      : ''
+
+    return (order.items || []).map((item) => ({
+      ...item,
+      orderId: order.id,
+      tableNumber: order.tableNumber,
+      lastMessage: latestMessage,
+      waitLabel: buildWaitLabel(item.createdAt || order.createdAt),
+    }))
+  }),
 )
-const readyItemsCount = computed(
-  () => stationItems.value.filter((item) => item.status === 'ready').length,
-)
+
+const lanes = computed(() => {
+  const laneDefs = [
+    { key: 'new', label: 'Neu', tone: 'warning' },
+    { key: 'in_progress', label: 'In Arbeit', tone: 'warning' },
+    { key: 'ready', label: 'Fertig', tone: 'success' },
+  ]
+
+  return laneDefs.map((lane) => ({
+    ...lane,
+    items: tickets.value.filter((ticket) => ticket.status === lane.key),
+  }))
+})
+
+function buildWaitLabel(dateValue) {
+  if (!dateValue) {
+    return 'Zeit unbekannt'
+  }
+
+  const ageInMs = Date.now() - new Date(dateValue).getTime()
+  const minutes = Math.max(0, Math.round(ageInMs / 60000))
+  return `${minutes} min`
+}
 
 function statusLabel(value) {
   const labels = {
@@ -136,7 +139,7 @@ function statusLabel(value) {
 }
 
 function statusTone(value) {
-  if (value === 'completed' || value === 'ready') return 'accent'
+  if (value === 'completed' || value === 'ready') return 'success'
   if (value === 'cancelled') return 'danger'
   return 'warning'
 }
@@ -195,3 +198,71 @@ onUnmounted(() => {
   unsubscribe()
 })
 </script>
+
+<style scoped>
+.station-board__header {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.station-board__header-meta {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2);
+}
+
+.station-board__lanes {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.station-board__lane {
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.station-board__lane-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.station-board__ticket-list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.station-board__ticket {
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.station-board__item-line {
+  margin: 0;
+}
+
+.station-board__actions {
+  margin-top: var(--space-1);
+}
+
+@media (min-width: 768px) {
+  .station-board__header-meta {
+    grid-template-columns: auto auto;
+    justify-content: start;
+  }
+
+  .station-board__lanes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .station-board__lanes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+</style>
+

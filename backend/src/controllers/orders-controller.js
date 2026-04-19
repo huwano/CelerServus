@@ -11,27 +11,27 @@ function createOrdersController({
   orderEvents = { publishOrderChanged() {} },
 }) {
   return {
-    listOrders(req, res, next) {
+    async listOrders(req, res, next) {
       try {
-        const orders = orderService.listOrders(req.user);
+        const orders = await orderService.listOrders(req.user);
         return res.json({ data: orders });
       } catch (error) {
         return next(error);
       }
     },
 
-    getOrder(req, res, next) {
+    async getOrder(req, res, next) {
       try {
-        const order = orderService.getOrder(req.user, req.params.orderId);
+        const order = await orderService.getOrder(req.user, req.params.orderId);
         return res.json({ data: order });
       } catch (error) {
         return next(error);
       }
     },
 
-    createOrder(req, res, next) {
+    async createOrder(req, res, next) {
       try {
-        const order = orderService.createOrder(req.user, req.body);
+        const order = await orderService.createOrder(req.user, req.body);
         notifyOrderChanged(orderEvents, {
           orderId: order.id,
           type: 'order_created',
@@ -42,9 +42,9 @@ function createOrdersController({
       }
     },
 
-    addOrderMessage(req, res, next) {
+    async addOrderMessage(req, res, next) {
       try {
-        const message = orderService.addMessage(req.user, req.params.orderId, req.body);
+        const message = await orderService.addMessage(req.user, req.params.orderId, req.body);
         notifyOrderChanged(orderEvents, {
           orderId: req.params.orderId,
           type: 'message_added',
@@ -55,9 +55,9 @@ function createOrdersController({
       }
     },
 
-    updateOrderItem(req, res, next) {
+    async updateOrderItem(req, res, next) {
       try {
-        const item = orderService.updateOrderItemStatus(
+        const item = await orderService.updateOrderItemStatus(
           req.user,
           req.params.orderId,
           req.params.itemId,

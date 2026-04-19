@@ -55,11 +55,13 @@ function normalizeOrderItem(item, index) {
 
   return {
     id: item.id || `item-${index + 1}`,
+    catalogItemKey: item.catalogItemKey || null,
     name: item.name,
     quantity: item.quantity,
     category: item.category,
     station,
     status: item.status || ORDER_ITEM_STATUSES.NEW,
+    createdAt: item.createdAt || new Date().toISOString(),
   };
 }
 

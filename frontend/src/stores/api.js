@@ -1,4 +1,6 @@
-export const API_URL = 'http://localhost:3000'
+import { resolveApiUrl } from '@/lib/runtime-config'
+
+export const API_URL = resolveApiUrl()
 
 export async function api(path, options = {}) {
   const res = await fetch(`${API_URL}${path}`, {

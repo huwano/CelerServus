@@ -6,12 +6,12 @@ class SessionService {
     this.userRepository = userRepository;
   }
 
-  authenticate(payload) {
+  async authenticate(payload) {
     assertPlainObject(payload, 'Invalid session payload');
 
     const username = requireTrimmedString(payload.username, 'username', 'Username is required');
     const password = requireTrimmedString(payload.password, 'password', 'Password is required');
-    const user = this.userRepository.findByCredentials(username, password);
+    const user = await this.userRepository.findByCredentials(username, password);
 
     if (!user) {
       throw new HttpError(401, 'invalid_credentials', 'Invalid credentials');

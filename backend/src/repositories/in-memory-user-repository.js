@@ -12,10 +12,18 @@ class InMemoryUserRepository {
     this.users = [...users];
   }
 
-  findByCredentials(username, password) {
+  async findByCredentials(username, password) {
     return (
       this.users.find((user) => user.username === username && user.password === password) || null
     );
+  }
+
+  async listAll() {
+    return this.users.map((user) => ({
+      id: user.id,
+      username: user.username,
+      role: user.role,
+    }));
   }
 }
 

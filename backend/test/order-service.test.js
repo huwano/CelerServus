@@ -8,6 +8,7 @@ const {
   ORDER_ITEM_STATUSES,
   STATIONS,
 } = require('../src/domain/orders');
+const { InMemoryCatalogRepository } = require('../src/repositories/in-memory-catalog-repository');
 const { InMemoryOrderRepository } = require('../src/repositories/in-memory-order-repository');
 const { OrderService } = require('../src/services/order-service');
 
@@ -70,43 +71,46 @@ function createServiceWithSeed() {
     },
   ]);
 
-  return new OrderService({ orderRepository: repository });
+  return new OrderService({
+    orderRepository: repository,
+    catalogRepository: new InMemoryCatalogRepository(),
+  });
 }
 
-test('bedienung only sees own orders', () => {
+test('bedienung only sees own orders', async () => {
   const service = createServiceWithSeed();
   const actor = { id: 'waiter-1', role: ROLES.BEDIENUNG };
 
-  const orders = service.listOrders(actor);
+  const orders = await service.listOrders(actor);
 
   assert.equal(orders.length, 1);
   assert.equal(orders[0].id, 'order-1');
 });
 
-test('theke sees only drink items and relevant messages', () => {
+test('theke sees only drink items and relevant messages', async () => {
   const service = createServiceWithSeed();
   const actor = { id: 'station-1', role: ROLES.THEKE };
 
-  const order = service.getOrder(actor, 'order-1');
+  const order = await service.getOrder(actor, 'order-1');
 
   assert.deepEqual(order.items.map((item) => item.id), ['item-1']);
   assert.deepEqual(order.messages.map((message) => message.id), ['message-1']);
 });
 
-test('admin sees all orders without filtering', () => {
+test('admin sees all orders without filtering', async () => {
   const service = createServiceWithSeed();
   const actor = { id: 'admin-1', role: ROLES.ADMIN };
 
-  const orders = service.listOrders(actor);
+  const orders = await service.listOrders(actor);
 
   assert.equal(orders.length, 2);
   assert.equal(orders[0].items.length, 2);
 });
 
-test('only the matching station can update an item status', () => {
+test('only the matching station can update an item status', async () => {
   const service = createServiceWithSeed();
 
-  assert.throws(
+  await assert.rejects(
     () =>
       service.updateOrderItemStatus(
         { id: 'station-1', role: ROLES.THEKE },
@@ -118,10 +122,10 @@ test('only the matching station can update an item status', () => {
   );
 });
 
-test('bedienung can add a station-specific message', () => {
+test('bedienung can add a station-specific message', async () => {
   const service = createServiceWithSeed();
 
-  const message = service.addMessage(
+  const message = await service.addMessage(
     { id: 'waiter-1', role: ROLES.BEDIENUNG },
     'order-1',
     {
@@ -134,10 +138,10 @@ test('bedienung can add a station-specific message', () => {
   assert.equal(message.message, 'Ist der Burger gleich fertig?');
 });
 
-test('createOrder rejects empty items as validation errors', () => {
+test('createOrder rejects empty items as validation errors', async () => {
   const service = createServiceWithSeed();
 
-  assert.throws(
+  await assert.rejects(
     () =>
       service.createOrder(
         { id: 'waiter-1', role: ROLES.BEDIENUNG },
@@ -153,10 +157,10 @@ test('createOrder rejects empty items as validation errors', () => {
   );
 });
 
-test('addMessage rejects empty message payloads as validation errors', () => {
+test('addMessage rejects empty message payloads as validation errors', async () => {
   const service = createServiceWithSeed();
 
-  assert.throws(
+  await assert.rejects(
     () =>
       service.addMessage(
         { id: 'waiter-1', role: ROLES.BEDIENUNG },
@@ -173,10 +177,10 @@ test('addMessage rejects empty message payloads as validation errors', () => {
   );
 });
 
-test('updateOrderItemStatus rejects missing status payloads as validation errors', () => {
+test('updateOrderItemStatus rejects missing status payloads as validation errors', async () => {
   const service = createServiceWithSeed();
 
-  assert.throws(
+  await assert.rejects(
     () =>
       service.updateOrderItemStatus(
         { id: 'station-1', role: ROLES.THEKE },
@@ -189,4 +193,20 @@ test('updateOrderItemStatus rejects missing status payloads as validation errors
       error.code === 'validation_error' &&
       error.details?.field === 'status',
   );
+});
+
+test('createOrder can resolve catalog items from the catalog repository', async () => {
+  const service = createServiceWithSeed();
+
+  const order = await service.createOrder(
+    { id: 'waiter-1', role: ROLES.BEDIENUNG },
+    {
+      tableNumber: '21',
+      items: [{ catalogItemKey: 'apfelschorle', quantity: 2 }],
+    },
+  );
+
+  assert.equal(order.items[0].catalogItemKey, 'apfelschorle');
+  assert.equal(order.items[0].name, 'Apfelschorle');
+  assert.equal(order.items[0].category, ITEM_CATEGORIES.DRINK);
 });

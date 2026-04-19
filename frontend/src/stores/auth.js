@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { api, getErrorMessage, unwrapData } from './api'
+import { useCatalogStore } from './catalog'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -38,6 +39,8 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async logout() {
+      const catalogStore = useCatalogStore()
+
       try {
         await api('/sessions/current', {
           method: 'DELETE',
@@ -50,6 +53,7 @@ export const useAuthStore = defineStore('auth', {
 
       this.user = null
       this.loaded = true
+      catalogStore.reset()
     },
   },
 })

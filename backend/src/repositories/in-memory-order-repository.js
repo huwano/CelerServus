@@ -5,26 +5,30 @@ class InMemoryOrderRepository {
     this.nextMessageId = 1;
   }
 
-  list() {
+  async list() {
     return this.orders.map((order) => structuredClone(order));
   }
 
-  findById(orderId) {
+  async findById(orderId) {
     const order = this.orders.find((entry) => entry.id === orderId);
     return order ? structuredClone(order) : null;
   }
 
-  create(order) {
+  generateOrderId() {
+    return `order-${this.nextOrderId++}`;
+  }
+
+  async create(order) {
     const createdOrder = {
       ...structuredClone(order),
-      id: order.id || `order-${this.nextOrderId++}`,
+      id: order.id || this.generateOrderId(),
     };
 
     this.orders.push(createdOrder);
     return structuredClone(createdOrder);
   }
 
-  save(order) {
+  async save(order) {
     const index = this.orders.findIndex((entry) => entry.id === order.id);
 
     if (index === -1) {
@@ -37,6 +41,44 @@ class InMemoryOrderRepository {
 
   generateMessageId() {
     return `message-${this.nextMessageId++}`;
+  }
+
+  async getOverviewStats() {
+    const ordersByStatus = this.orders.reduce((acc, order) => {
+      acc[order.status] = (acc[order.status] || 0) + 1;
+      return acc;
+    }, {});
+
+    const items = this.orders.flatMap((order) => order.items);
+    const itemsByCategory = items.reduce((acc, item) => {
+      const current = acc[item.category] || { lineCount: 0, quantityTotal: 0 };
+      current.lineCount += 1;
+      current.quantityTotal += item.quantity;
+      acc[item.category] = current;
+      return acc;
+    }, {});
+
+    const activeItemsByStation = items
+      .filter((item) => ['new', 'in_progress'].includes(item.status))
+      .reduce((acc, item) => {
+        acc[item.station] = (acc[item.station] || 0) + 1;
+        return acc;
+      }, {});
+
+    const totalMessages = this.orders.reduce((sum, order) => sum + order.messages.length, 0);
+    const busyTables = new Set(
+      this.orders
+        .filter((order) => ['open', 'in_progress'].includes(order.status))
+        .map((order) => order.tableNumber),
+    ).size;
+
+    return {
+      ordersByStatus,
+      itemsByCategory,
+      activeItemsByStation,
+      totalMessages,
+      busyTables,
+    };
   }
 }
 

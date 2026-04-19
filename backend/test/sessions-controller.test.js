@@ -11,7 +11,7 @@ function createController() {
   return createSessionsController({ sessionService: service });
 }
 
-test('createSession responds with 201 and stores the canonical role in the session', () => {
+test('createSession responds with 201 and stores the canonical role in the session', async () => {
   const controller = createController();
   const req = {
     body: { username: 'kellner1', password: 'test123' },
@@ -20,7 +20,7 @@ test('createSession responds with 201 and stores the canonical role in the sessi
   const res = createMockResponse();
   const { calls, next } = createNextCollector();
 
-  controller.createSession(req, res, next);
+  await controller.createSession(req, res, next);
 
   assert.equal(calls.length, 0);
   assert.equal(res.statusCode, 201);
@@ -28,7 +28,7 @@ test('createSession responds with 201 and stores the canonical role in the sessi
   assert.equal(res.body.data.user.role, 'bedienung');
 });
 
-test('createLegacySession maps canonical roles back to the legacy frontend shape', () => {
+test('createLegacySession maps canonical roles back to the legacy frontend shape', async () => {
   const controller = createController();
   const req = {
     body: { username: 'kellner1', password: 'test123' },
@@ -37,14 +37,14 @@ test('createLegacySession maps canonical roles back to the legacy frontend shape
   const res = createMockResponse();
   const { calls, next } = createNextCollector();
 
-  controller.createLegacySession(req, res, next);
+  await controller.createLegacySession(req, res, next);
 
   assert.equal(calls.length, 0);
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.user.role, 'waiter');
 });
 
-test('createSession forwards validation errors for incomplete payloads', () => {
+test('createSession forwards validation errors for incomplete payloads', async () => {
   const controller = createController();
   const req = {
     body: { username: '   ' },
@@ -53,7 +53,7 @@ test('createSession forwards validation errors for incomplete payloads', () => {
   const res = createMockResponse();
   const { calls, next } = createNextCollector();
 
-  controller.createSession(req, res, next);
+  await controller.createSession(req, res, next);
 
   assert.equal(calls.length, 1);
   assert.equal(calls[0].statusCode, 400);

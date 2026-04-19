@@ -1,5 +1,5 @@
 <template>
-  <div class="view-shell">
+  <div class="view-shell view-shell--with-bottom-bar">
     <section class="hero-panel surface">
       <div>
         <p class="eyebrow">Service Hub</p>
@@ -67,16 +67,24 @@
 
             <div class="form-grid">
               <label>
-                <span>Artikel</span>
-                <input v-model="itemName" placeholder="z. B. Apfelschorle" />
+                <span>Kategorie</span>
+                <select v-model="category">
+                  <option
+                    v-for="categoryOption in categoryOptions"
+                    :key="categoryOption.value"
+                    :value="categoryOption.value"
+                  >
+                    {{ categoryOption.label }}
+                  </option>
+                </select>
               </label>
 
               <label>
-                <span>Kategorie</span>
-                <select v-model="category">
-                  <option value="drink">Getränk</option>
-                  <option value="food">Speise</option>
-                </select>
+                <span>Suche im Katalog</span>
+                <input
+                  v-model="itemSearch"
+                  placeholder="Optional filtern, z. B. Wein oder Pommes"
+                />
               </label>
 
               <label>
@@ -85,11 +93,26 @@
               </label>
             </div>
 
+            <div class="stack">
+              <div class="row-spread">
+                <span class="muted">Große Auswahlflächen sind schneller als Freitext.</span>
+                <span class="soft-pill">
+                  {{ selectedCatalogItem ? selectedCatalogItem.label : 'Kein Artikel gewählt' }}
+                </span>
+              </div>
+
+              <CatalogItemGrid
+                v-model="selectedItemKey"
+                :items="filteredCatalogItems"
+                empty-text="Keine passenden Katalogartikel in dieser Kategorie."
+              />
+            </div>
+
             <div class="stack-row">
-              <span class="muted">Position zuerst sammeln, danach als Order senden.</span>
-              <button class="secondary-button" type="button" @click="addDraftItem">
+              <span class="muted">Die Bedienung kann nur vorhandene Katalogartikel auswählen.</span>
+              <BaseButton :disabled="!selectedCatalogItem" variant="secondary" @click="addDraftItem">
                 Position hinzufügen
-              </button>
+              </BaseButton>
             </div>
           </div>
 
@@ -113,20 +136,36 @@
                     <p class="data-card__title">{{ draftItem.quantity }} x {{ draftItem.name }}</p>
                     <p class="data-card__meta">{{ categoryLabel(draftItem.category) }}</p>
                   </div>
-                  <button
-                    class="danger-button"
-                    type="button"
-                    @click="removeDraftItem(draftItem.id)"
-                  >
+                  <BaseButton variant="danger" @click="removeDraftItem(draftItem.id)">
                     Entfernen
-                  </button>
+                  </BaseButton>
                 </div>
               </li>
             </ul>
           </div>
 
           <p v-if="formError" class="error-text">{{ formError }}</p>
-          <button :disabled="submitting" type="submit">Bestellung anlegen</button>
+
+          <BottomActionBar>
+            <template #meta>
+              <strong>{{ draftActionLabel }}</strong>
+              <span class="muted">{{ draftActionHint }}</span>
+            </template>
+
+            <BaseButton
+              block
+              :disabled="!hasDraftContent || submitting"
+              type="button"
+              variant="secondary"
+              @click="resetOrderForm"
+            >
+              Eingabe leeren
+            </BaseButton>
+
+            <BaseButton block :disabled="!canSubmitOrder || submitting" type="submit">
+              {{ submitting ? 'Sende Bestellung...' : 'Bestellung senden' }}
+            </BaseButton>
+          </BottomActionBar>
         </form>
       </section>
 
@@ -136,7 +175,7 @@
             <p class="eyebrow">Laufender Betrieb</p>
             <h2 class="panel-title">Meine Bestellungen</h2>
           </div>
-          <button class="button--ghost" @click="loadOrders">Aktualisieren</button>
+          <BaseButton variant="ghost" @click="loadOrders">Aktualisieren</BaseButton>
         </div>
 
         <p v-if="loading" class="empty-state">Lade Bestellungen...</p>
@@ -215,9 +254,13 @@
 
                 <div class="stack-row">
                   <span class="muted">Die Nachricht wird chronologisch an die Order angehängt.</span>
-                  <button :disabled="sendingMessageOrderId === order.id" type="submit">
+                  <BaseButton
+                    :disabled="sendingMessageOrderId === order.id"
+                    type="submit"
+                    variant="primary"
+                  >
                     Nachricht senden
-                  </button>
+                  </BaseButton>
                 </div>
               </form>
             </div>
@@ -229,14 +272,21 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import CatalogItemGrid from '@/components/app/CatalogItemGrid.vue'
 import MetricCard from '@/components/MetricCard.vue'
+import BaseButton from '@/components/ui/BaseButton.vue'
+import BottomActionBar from '@/components/ui/BottomActionBar.vue'
+import { buildOrderPayload } from '@/lib/order-payload'
 import { api, getErrorMessage, unwrapData } from '@/stores/api'
+import { useCatalogStore } from '@/stores/catalog'
 import { subscribeToOrderChanges } from '@/realtime/orders'
 
+const catalogStore = useCatalogStore()
 const tableNumber = ref('')
-const itemName = ref('')
-const category = ref('drink')
+const selectedItemKey = ref('')
+const itemSearch = ref('')
+const category = ref(catalogStore.defaultCategoryKey)
 const quantity = ref(1)
 const initialNote = ref('')
 const draftItems = ref([])
@@ -257,12 +307,35 @@ const activeOrdersCount = computed(() =>
 const totalMessagesCount = computed(() =>
   orders.value.reduce((sum, order) => sum + order.messages.length, 0),
 )
-const draftItemsCount = computed(
-  () => draftItems.value.length + (itemName.value.trim() ? 1 : 0),
+const selectedCatalogItem = computed(() => catalogStore.getItemByKey(selectedItemKey.value))
+const isSelectedCatalogItemValid = computed(
+  () => selectedCatalogItem.value && selectedCatalogItem.value.category === category.value,
+)
+const filteredCatalogItems = computed(() =>
+  catalogStore.getItemsForWaiter(category.value, itemSearch.value),
+)
+const draftItemsCount = computed(() => draftItems.value.length + (isSelectedCatalogItemValid.value ? 1 : 0))
+const categoryOptions = computed(() => catalogStore.categoryOptions)
+const canSubmitOrder = computed(() => draftItems.value.length > 0 || Boolean(isSelectedCatalogItemValid.value))
+const hasDraftContent = computed(
+  () =>
+    canSubmitOrder.value ||
+    tableNumber.value.trim().length > 0 ||
+    initialNote.value.trim().length > 0,
+)
+const draftActionLabel = computed(() =>
+  draftItemsCount.value > 0
+    ? `${draftItemsCount.value} Positionen bereit`
+    : 'Noch keine Position vorbereitet',
+)
+const draftActionHint = computed(() =>
+  canSubmitOrder.value
+    ? 'Senden liegt unten im Daumenbereich bereit.'
+    : 'Erst Position hinzufügen oder laufende Eingabe ausfüllen.',
 )
 
 function categoryLabel(value) {
-  return value === 'drink' ? 'Getränk' : 'Speise'
+  return catalogStore.getCategoryLabel(value)
 }
 
 function statusLabel(value) {
@@ -279,7 +352,7 @@ function statusLabel(value) {
 }
 
 function statusTone(value) {
-  if (value === 'completed' || value === 'ready') return 'accent'
+  if (value === 'completed' || value === 'ready') return 'success'
   if (value === 'cancelled') return 'danger'
   if (value === 'open' || value === 'new' || value === 'in_progress') return 'warning'
   return 'neutral'
@@ -301,8 +374,9 @@ function targetLabel(targetStations) {
 }
 
 function resetItemInputs() {
-  itemName.value = ''
-  category.value = 'drink'
+  selectedItemKey.value = ''
+  itemSearch.value = ''
+  category.value = catalogStore.defaultCategoryKey
   quantity.value = 1
 }
 
@@ -314,26 +388,33 @@ function resetOrderForm() {
 }
 
 function buildDraftItem() {
-  const normalizedName = itemName.value.trim()
-
-  if (!normalizedName) {
-    throw new Error('Artikelname ist erforderlich')
+  if (!selectedCatalogItem.value) {
+    throw new Error('Artikel muss aus dem Katalog gewählt werden')
   }
 
   if (!Number.isInteger(quantity.value) || quantity.value < 1) {
     throw new Error('Anzahl muss eine positive ganze Zahl sein')
   }
 
+  if (!catalogStore.hasCategory(category.value)) {
+    throw new Error('Kategorie ist nicht gueltig')
+  }
+
+  if (!isSelectedCatalogItemValid.value) {
+    throw new Error('Artikel passt nicht zur gewählten Kategorie')
+  }
+
   return {
     id: `draft-${nextDraftItemId.value++}`,
-    name: normalizedName,
+    catalogItemKey: selectedCatalogItem.value.key,
+    name: selectedCatalogItem.value.label,
     quantity: quantity.value,
     category: category.value,
   }
 }
 
 function ensureCurrentItemCaptured() {
-  if (!itemName.value.trim()) {
+  if (!isSelectedCatalogItemValid.value) {
     return
   }
 
@@ -398,15 +479,13 @@ async function submitOrder() {
 
     await api('/orders', {
       method: 'POST',
-      body: JSON.stringify({
-        tableNumber: tableNumber.value,
-        initialNote: initialNote.value,
-        items: draftItems.value.map(({ name, quantity: itemQuantity, category: itemCategory }) => ({
-          name,
-          quantity: itemQuantity,
-          category: itemCategory,
-        })),
-      }),
+      body: JSON.stringify(
+        buildOrderPayload({
+          tableNumber: tableNumber.value,
+          initialNote: initialNote.value,
+          draftItems: draftItems.value,
+        }),
+      ),
     })
 
     resetOrderForm()
@@ -444,6 +523,10 @@ async function sendMessage(orderId) {
 }
 
 onMounted(loadOrders)
+
+watch(category, () => {
+  selectedItemKey.value = ''
+})
 
 const unsubscribe = subscribeToOrderChanges(() => {
   loadOrders()

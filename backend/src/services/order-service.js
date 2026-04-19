@@ -157,13 +157,22 @@ function validateOrderItems(items) {
       });
     }
 
-    requireTrimmedString(item.name, `items[${index}].name`, 'Order item name is required');
-
     if (!Number.isInteger(item.quantity) || item.quantity < 1) {
       throw createValidationError('Order item quantity must be a positive integer', {
         field: `items[${index}].quantity`,
       });
     }
+
+    if (item.catalogItemKey !== undefined && item.catalogItemKey !== null) {
+      requireTrimmedString(
+        item.catalogItemKey,
+        `items[${index}].catalogItemKey`,
+        'Catalog item key is required',
+      );
+      return;
+    }
+
+    requireTrimmedString(item.name, `items[${index}].name`, 'Order item name is required');
 
     if (!Object.values(ITEM_CATEGORIES).includes(item.category)) {
       throw createValidationError('Unsupported item category', {
@@ -173,15 +182,39 @@ function validateOrderItems(items) {
   });
 }
 
-function normalizeCreateOrderPayload(payload, actor) {
+async function normalizeCreateOrderPayload(payload, actor, catalogRepository) {
   assertPlainObject(payload, 'Invalid order payload');
   validateOrderItems(payload.items);
+
+  const normalizedItems = await Promise.all(
+    payload.items.map(async (item, index) => {
+      if (item.catalogItemKey && catalogRepository?.getItemByKey) {
+        const catalogItem = await catalogRepository.getItemByKey(item.catalogItemKey);
+
+        if (!catalogItem || catalogItem.isActive === false) {
+          throw createValidationError('Unknown catalog item', {
+            field: `items[${index}].catalogItemKey`,
+          });
+        }
+
+        return {
+          catalogItemKey: catalogItem.key,
+          name: catalogItem.label,
+          quantity: item.quantity,
+          category: catalogItem.category,
+          station: catalogItem.station,
+        };
+      }
+
+      return item;
+    }),
+  );
 
   return {
     tableNumber: normalizeTableNumber(payload.tableNumber),
     createdByUserId: normalizeCreatedByUserId(payload.createdByUserId, actor),
     initialNote: normalizeOptionalTrimmedString(payload.initialNote, 'initialNote'),
-    items: payload.items,
+    items: normalizedItems,
   };
 }
 
@@ -203,13 +236,15 @@ function normalizeOrderItemStatusPayload(payload) {
 }
 
 class OrderService {
-  constructor({ orderRepository }) {
+  constructor({ orderRepository, catalogRepository = null }) {
     this.orderRepository = orderRepository;
+    this.catalogRepository = catalogRepository;
   }
 
-  listOrders(actor) {
-    return this.orderRepository
-      .list()
+  async listOrders(actor) {
+    const orders = await this.orderRepository.list();
+
+    return orders
       .filter((order) => {
         try {
           assertCanReadOrder(actor, order);
@@ -221,8 +256,8 @@ class OrderService {
       .map((order) => projectOrderForActor(order, actor));
   }
 
-  getOrder(actor, orderId) {
-    const order = this.orderRepository.findById(orderId);
+  async getOrder(actor, orderId) {
+    const order = await this.orderRepository.findById(orderId);
 
     if (!order) {
       throw new HttpError(404, 'order_not_found', 'Order not found');
@@ -232,14 +267,21 @@ class OrderService {
     return projectOrderForActor(order, actor);
   }
 
-  createOrder(actor, payload) {
+  async createOrder(actor, payload) {
     assertCanCreateOrder(actor);
 
-    const normalizedPayload = normalizeCreateOrderPayload(payload, actor);
+    const normalizedPayload = await normalizeCreateOrderPayload(
+      payload,
+      actor,
+      this.catalogRepository,
+    );
     let order;
 
     try {
-      order = createOrder(normalizedPayload);
+      order = createOrder({
+        ...normalizedPayload,
+        id: this.orderRepository.generateOrderId?.(),
+      });
     } catch (error) {
       throw toValidationError(error, 'Invalid order payload');
     }
@@ -247,8 +289,8 @@ class OrderService {
     return this.orderRepository.create(order);
   }
 
-  addMessage(actor, orderId, payload) {
-    const order = this.orderRepository.findById(orderId);
+  async addMessage(actor, orderId, payload) {
+    const order = await this.orderRepository.findById(orderId);
 
     if (!order) {
       throw new HttpError(404, 'order_not_found', 'Order not found');
@@ -272,13 +314,13 @@ class OrderService {
     }
 
     order.messages = [...order.messages, message];
-    const savedOrder = this.orderRepository.save(order);
+    const savedOrder = await this.orderRepository.save(order);
 
     return savedOrder.messages.at(-1);
   }
 
-  updateOrderItemStatus(actor, orderId, itemId, payload) {
-    const order = this.orderRepository.findById(orderId);
+  async updateOrderItemStatus(actor, orderId, itemId, payload) {
+    const order = await this.orderRepository.findById(orderId);
 
     if (!order) {
       throw new HttpError(404, 'order_not_found', 'Order not found');
@@ -297,7 +339,7 @@ class OrderService {
     item.status = normalizedPayload.status;
     order.status = deriveOrderStatus(order.items);
 
-    const savedOrder = this.orderRepository.save(order);
+    const savedOrder = await this.orderRepository.save(order);
     return savedOrder.items.find((entry) => entry.id === itemId);
   }
 }

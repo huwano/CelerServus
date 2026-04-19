@@ -1,77 +1,105 @@
-# CelerServus – Real-Time Restaurant Management System
+# CelerServus
 
-## Projektübersicht
+Rollenbasierte Echtzeit-App fuer den Gastro-Betrieb mit Fokus auf schnelle, fehlertolerante Bedienung im laufenden Service.
 
-CelerServus ist ein modernes, webbasiertes Restaurant-Management-System, das Echtzeit-Kommunikation und effiziente Bestellabwicklung in einem zentralen Tool vereint. Ziel ist es, den Arbeitsablauf zwischen Kellnern, Küche und Bar zu optimieren und gleichzeitig eine einfache, intuitive Bedienung für das Personal zu gewährleisten.
+Der aktuelle Stand ist kein Konzept mehr, sondern ein lauffaehiger Entwicklungsstand mit getrenntem Vue-Frontend und Node-/Express-Backend inklusive Session-Handling, Orders, Stationsboards und Realtime-Signalen.
 
----
+## Starten
 
-## Kernfunktionen
+Die lokale Startanleitung liegt in [docs/start.md](/home/valle/Desktop/celerservus/CelerServus/docs/start.md:1).
 
-### Bestellmanagement
-- Bestellungen werden digital erfasst mit:
-    - Tischnummer
-    - Menüartikeln und Mengen
-    - Sonderwünschen als Notiz für die gesamte Bestellung
-- Bestellungen können nachträglich vom zuständigen Kellner geändert oder storniert werden.
-- Getrennte Bezahlung möglich, indem einzelne Artikel ausgewählt und abgerechnet werden können (nach der Bestellaufnahme).
+Kurzform:
 
-### Echtzeit-Benachrichtigungen
-- Neue Bestellungen werden sofort an Küche und Bar (Weinausschank) übermittelt.
-- Fertiggestellte Bestellungen lösen eine Benachrichtigung an den zuständigen Kellner aus.
-- Direktes Rufsystem von Küche zu Kellner zur schnellen Kommunikation.
-- Systemweite Inventarwarnungen informieren zuständiges Personal über niedrige Bestände.
-- Benachrichtigungen erfolgen in Form von Pop-up-Fenstern für eine unmittelbare und sichtbare Information.
+- ohne Datenbank: `BACKEND_STORAGE_MODE=memory ./dev.sh`
+- mit PostgreSQL: `cp backend/.env.example backend/.env` und danach `./dev.sh`
 
-### Benutzerverwaltung und Rollen
-- Mehrbenutzer-System mit differenzierten Rollen:
-    - Kellner sehen und bearbeiten ausschließlich ihre eigenen Bestellungen.
-    - Admin hat Vollzugriff auf alle Bestellungen und Systemfunktionen.
-- Benutzer-Authentifizierung erfolgt via Login mit Benutzername und Passwort.
-- Temporäre Gast-Accounts können für Aushilfen eingerichtet werden.
-- Rollenbasierte Zugriffsrechte sind modular und erweiterbar.
+## Aktueller Stack
 
----
+- Frontend: Vue 3, Pinia, Vue Router, Vite, Vitest
+- Backend: Node.js, Express, `express-session`, Socket.IO
+- Persistenz: In-Memory fuer schnellen Dev-Start, PostgreSQL fuer echten Persistenzpfad
+- Tests: `node:test` im Backend, Vitest im Frontend
 
-## Technische Architektur
+## Fachlicher Zuschnitt
 
-- **Frontend:**
-    - Webanwendung mit React (oder Vue.js) für ein modernes und dynamisches Nutzererlebnis.
-    - Echtzeit-Updates über WebSockets (Socket.IO).
-    - Intuitive Bedienoberfläche mit Pop-up-Fenstern für schnelle Aktionen wie Bestellaufnahme und Benachrichtigungen.
+CelerServus arbeitet aktuell mit den kanonischen Rollen:
 
-- **Backend:**
-    - Node.js mit Express als Webserver.
-    - WebSocket-Kommunikation mit Socket.IO für Echtzeit-Datenfluss.
-    - Authentifizierungs- und Autorisierungslogik für sichere Mehrbenutzerumgebung.
+- `bedienung`
+- `theke`
+- `kueche`
+- `admin`
 
-- **Datenbank:**
-    - PostgreSQL als relationale Datenbank.
-    - Speicherung von Bestellungen, Benutzerdaten, Inventar, und Systemlogs.
-    - **[Platz für zukünftige Detailplanung der Datenbankstruktur]**
+Der derzeitige Produktkern:
 
----
+- Login ueber serverseitige Sessions
+- Orders mit mehreren Positionen
+- stationsbezogene Verarbeitung fuer `theke` und `kueche`
+- Nachrichten an `theke`, `kueche` oder `beide`
+- Realtime-Refresh ueber `orders:changed`
+- eigener Admin-Ueberblick auf Basis des neuen Order-Modells
 
-## Entwicklungsstand und ToDos
+## Projektstruktur
 
-- Detaillierte Anforderungen sind definiert und das Grundkonzept steht.
-- Benutzerrollen und Rechteverwaltung festgelegt.
-- Erste Konzepte für Bestellmanagement und Echtzeit-Benachrichtigungen entworfen.
-- Technologiestack (Node.js, Express, Socket.IO, React/Vue, PostgreSQL) ist ausgewählt.
-- **[Platz für weitere ToDos, z.B. Datenbank-Schema-Design, UI/UX-Design, Testing-Plan]**
+```text
+.
+├── backend
+│   ├── src
+│   │   ├── config
+│   │   ├── controllers
+│   │   ├── db
+│   │   ├── domain
+│   │   ├── middleware
+│   │   ├── realtime
+│   │   ├── repositories
+│   │   ├── routes
+│   │   └── services
+│   └── test
+├── frontend
+│   ├── src
+│   │   ├── assets
+│   │   ├── components
+│   │   ├── lib
+│   │   ├── realtime
+│   │   ├── router
+│   │   ├── stores
+│   │   └── views
+└── docs
+```
 
----
+## Zentrale Dokumente
 
-## Nächste Schritte
+- Start: [docs/start.md](/home/valle/Desktop/celerservus/CelerServus/docs/start.md:1)
+- Design-Richtlinie: [docs/design.md](/home/valle/Desktop/celerservus/CelerServus/docs/design.md:1)
+- Engineering-Log und Architekturverlauf: [docs/engineering-log.md](/home/valle/Desktop/celerservus/CelerServus/docs/engineering-log.md:1)
 
-- Entwicklung und Feinplanung der Datenbanktabellen und Beziehungen.
-- Umsetzung der Benutzer-Authentifizierung und Rollenkonzepte.
-- Implementierung des Order-Managements mit Echtzeit-Funktionalitäten.
-- UI-Design und Frontend-Entwicklung für eine effiziente Benutzerführung.
-- Umfangreiche Tests für Usability, Performance und Sicherheit.
+## Entwicklungsstand
 
----
+Der aktuelle Codezustand entspricht grob diesem Stand:
 
-## Mitwirkung & Kontakt
+- pluralisierte Session- und Orders-API ist aktiv
+- Frontend ist auf die kanonischen Rollen umgestellt
+- Realtime fuer Bestellaenderungen ist verdrahtet
+- Request-Validierung und Fehlerhuellen sind im Backend zentralisiert
+- Frontend hat ein gemeinsames App-Shell-/Token-System
 
-Das Projekt ist offen für Beiträge und Anregungen. Bei Interesse oder Fragen bitte Kontakt aufnehmen.
+Weiter offen bzw. noch nicht voll gehaertet:
+
+- echte End-to-End-Absicherung ueber komplette Nutzerfluesse
+- Persistenz und Betriebsmodus jenseits lokaler Entwicklung
+- weitere Härtung von Repo-, DB- und Deployment-Pfaden
+
+## Verifikation
+
+Zuletzt erfolgreich geprueft:
+
+- `cd backend && npm test`
+- `cd frontend && npm run test:unit -- --run`
+- `cd frontend && npm run build`
+
+## Arbeitsweise
+
+Wenn du an diesem Projekt weiterarbeitest, sind die wichtigsten Quellen in dieser Reihenfolge:
+
+1. [docs/start.md](/home/valle/Desktop/celerservus/CelerServus/docs/start.md:1) fuer den sauberen lokalen Start
+2. [docs/engineering-log.md](/home/valle/Desktop/celerservus/CelerServus/docs/engineering-log.md:1) fuer Architektur- und Implementierungsstand
+3. [docs/design.md](/home/valle/Desktop/celerservus/CelerServus/docs/design.md:1) fuer verbindliche Frontend- und UX-Leitlinien
