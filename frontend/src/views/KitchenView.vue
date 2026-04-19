@@ -1,9 +1,5 @@
 <template>
-  <StationBoard
-    description="Fokussiert auf Speisen, Reihenfolge und klare Rückmeldung an den Service."
-    eyebrow="Küche"
-    title="Küchenpass"
-  />
+  <StationBoard eyebrow="Kueche" title="Kuechenpass" />
 </template>
 
 <script setup>

@@ -157,7 +157,7 @@ h3 {
 
 .view-shell {
   display: grid;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .view-shell--with-bottom-bar {
@@ -347,8 +347,8 @@ h3 {
 
 .shell--compact {
   display: grid;
-  gap: 0.8rem;
-  padding: 0.8rem;
+  gap: 0.4rem;
+  padding: 0.4rem;
 }
 
 .shell__profile,
@@ -366,7 +366,9 @@ h3 {
   top: 0;
   z-index: 10;
   margin: 0;
-  padding: 0.9rem;
+  min-height: 3.4rem;
+  max-height: 3.4rem;
+  padding: 0.25rem 0.45rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -383,24 +385,48 @@ h3 {
 .shell__topbar-right {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: 0.35rem;
 }
 
-.shell__status {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.7rem;
-  border-radius: var(--radius-sm);
-  background: var(--warning-soft);
-  color: var(--ink-1);
-  font-size: 0.84rem;
-  font-weight: 800;
-  border: 1px solid var(--warning);
+.shell__route-title {
+  margin: 0;
+  max-width: 56vw;
+  overflow: hidden;
+  font-size: 0.92rem;
+  line-height: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .shell__logout {
   width: auto;
+}
+
+.shell__action-btn {
+  min-width: 2.2rem;
+  min-height: 2.2rem;
+  height: 2.2rem;
+  padding: 0;
+  border-color: var(--line);
+  background: var(--surface-soft);
+  color: var(--ink-1);
+  font-size: 0.82rem;
+  line-height: 1;
+}
+
+.shell__theme-toggle,
+.shell__logout {
+  min-width: 2.2rem;
+}
+
+.shell__icon {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .shell__main {
@@ -415,7 +441,18 @@ h3 {
 
 .shell__content {
   display: grid;
-  gap: 0.9rem;
+  gap: 0.4rem;
+}
+
+.u-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
 }
 
 .login-screen {
@@ -501,7 +538,7 @@ h3 {
   }
 
   .view-shell {
-    gap: 0.75rem;
+    gap: 0.45rem;
   }
 
   .view-shell--with-bottom-bar {
@@ -580,7 +617,7 @@ h3 {
   .shell__topbar,
   .shell__topbar-left,
   .shell__topbar-right {
-    gap: 0.65rem;
+    gap: 0.45rem;
   }
 
   .inline-item {
@@ -594,28 +631,55 @@ h3 {
   }
 
   .shell__topbar {
-    margin-bottom: 0.75rem;
-    padding: 0.7rem 0.8rem;
+    margin-bottom: 0.45rem;
+    min-height: 3rem;
+    max-height: 3rem;
+    padding: 0.2rem 0.35rem;
   }
 
   .shell__route-title,
   .shell__brand-title {
-    font-size: 1.1rem;
+    font-size: 0.86rem;
   }
 
-  .shell__burger {
-    min-width: 2.5rem;
-    min-height: 2.5rem;
+  .shell__action-btn {
+    min-width: 2rem;
+    min-height: 2rem;
+    height: 2rem;
+    font-size: 0.78rem;
   }
 
-  .shell__status {
-    display: none;
+  .shell__theme-toggle,
+  .shell__logout {
+    min-width: 2rem;
   }
 
   .shell__drawer {
     gap: 0.8rem;
     width: min(92vw, 20rem);
     padding: 0.9rem;
+  }
+
+  .login-screen {
+    align-items: start;
+  }
+
+  .login-aside {
+    order: -1;
+  }
+
+  .login-panel {
+    padding-top: 0.75rem;
+  }
+
+  .login-title {
+    font-size: clamp(1.45rem, 6vw, 1.9rem);
+    line-height: 1.05;
+  }
+
+  .login-copy,
+  .login-panel .metrics-grid {
+    display: none;
   }
 }
 

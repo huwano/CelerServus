@@ -106,6 +106,26 @@ defineProps({
   background: var(--surface-strong);
 }
 
+.base-button--outline {
+  border-color: var(--line);
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.base-button--outline:active {
+  background: var(--surface-soft);
+}
+
+.base-button--success {
+  border-color: var(--success);
+  background: var(--success);
+  color: var(--color-success-contrast);
+}
+
+.base-button--success:active {
+  background: var(--color-success-strong);
+}
+
 .base-button--danger {
   border-color: var(--danger);
   background: var(--danger);

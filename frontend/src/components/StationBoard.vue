@@ -1,20 +1,31 @@
 <template>
   <div class="view-shell view-shell--with-bottom-bar">
     <section class="list-panel surface station-board__header">
-      <div>
+      <div class="station-board__title-wrap">
         <p class="eyebrow">{{ eyebrow }}</p>
-        <h1 class="panel-title">{{ title }}</h1>
-        <p class="muted">{{ description }}</p>
+        <h1 class="panel-title station-board__title">{{ title }}</h1>
       </div>
       <div class="station-board__header-meta">
         <span class="soft-pill">{{ orders.length }} Orders</span>
-        <BaseButton variant="ghost" @click="loadOrders">Aktualisieren</BaseButton>
+        <BaseButton
+          aria-label="Aktualisieren"
+          class="station-board__icon-btn"
+          title="Aktualisieren"
+          variant="ghost"
+          @click="loadOrders"
+        >
+          <svg aria-hidden="true" class="station-board__icon" viewBox="0 0 24 24">
+            <path d="M20 12A8 8 0 1 1 17.6 6.2" />
+            <path d="M20 4V10H14" />
+          </svg>
+          <span class="u-sr-only">Aktualisieren</span>
+        </BaseButton>
       </div>
     </section>
 
     <p v-if="loading" class="empty-state">Lade Bestellungen...</p>
     <p v-else-if="error" class="error-text">{{ error }}</p>
-    <p v-else-if="tickets.length === 0" class="empty-state">Keine Tickets für diese Station.</p>
+    <p v-else-if="tickets.length === 0" class="station-board__empty-rail">Keine Tickets</p>
 
     <div v-else class="station-board__lanes">
       <section v-for="lane in lanes" :key="lane.key" class="surface station-board__lane">
@@ -23,7 +34,7 @@
           <span class="status-pill" :data-tone="lane.tone">{{ lane.items.length }}</span>
         </header>
 
-        <p v-if="lane.items.length === 0" class="empty-state">Aktuell leer.</p>
+        <p v-if="lane.items.length === 0" class="station-board__lane-empty">Leer</p>
 
         <ul v-else class="station-board__ticket-list">
           <li v-for="ticket in lane.items" :key="ticket.id" class="station-board__ticket surface surface--soft">
@@ -41,7 +52,7 @@
               <strong>{{ ticket.quantity }} x {{ ticket.name }}</strong>
             </p>
 
-            <p v-if="ticket.lastMessage" class="data-card__meta">Hinweis: {{ ticket.lastMessage }}</p>
+            <p v-if="ticket.lastMessage" class="data-card__meta">{{ ticket.lastMessage }}</p>
 
             <div class="station-board__actions">
               <BaseButton
@@ -74,10 +85,6 @@ defineProps({
   title: {
     type: String,
     required: true,
-  },
-  description: {
-    type: String,
-    default: '',
   },
 })
 
@@ -201,25 +208,67 @@ onUnmounted(() => {
 
 <style scoped>
 .station-board__header {
-  display: grid;
-  gap: var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 3.2rem;
+  max-height: 3.2rem;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.station-board__title-wrap {
+  min-width: 0;
+}
+
+.station-board__title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .station-board__header-meta {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.station-board__icon-btn {
+  min-width: 2.1rem;
+  min-height: 2.1rem;
+  padding: 0;
+}
+
+.station-board__icon {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.station-board__empty-rail {
+  margin: 0;
+  padding: 0.25rem 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-3);
 }
 
 .station-board__lanes {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
+  min-height: calc(100vh - 9.5rem);
+  align-content: start;
 }
 
 .station-board__lane {
-  padding: var(--space-3);
+  padding: var(--space-2);
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .station-board__lane-head {
@@ -235,9 +284,17 @@ onUnmounted(() => {
 }
 
 .station-board__ticket {
-  padding: var(--space-3);
+  padding: var(--space-2);
   display: grid;
   gap: var(--space-2);
+}
+
+.station-board__lane-empty {
+  margin: 0;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-3);
 }
 
 .station-board__item-line {

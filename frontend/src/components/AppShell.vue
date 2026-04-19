@@ -2,30 +2,42 @@
   <div class="shell shell--compact">
     <header class="shell__topbar shell__topbar--compact surface">
       <div class="shell__topbar-left">
-        <div>
-          <p class="eyebrow">{{ roleMeta.label }}</p>
-          <h2 class="shell__route-title">{{ currentTitle }}</h2>
-        </div>
+        <h2 class="shell__route-title" :title="currentTitle">{{ currentTitle }}</h2>
       </div>
 
       <div class="shell__topbar-right">
-        <span class="shell__status">Live</span>
-        <button class="button button--ghost shell__theme-toggle" type="button" @click="toggleTheme">
-          {{ themeToggleLabel }}
+        <button
+          class="button button--ghost shell__action-btn shell__theme-toggle"
+          :aria-label="themeToggleLabel"
+          :title="themeToggleLabel"
+          type="button"
+          @click="toggleTheme"
+        >
+          <svg aria-hidden="true" class="shell__icon" viewBox="0 0 24 24">
+            <path
+              d="M12 3.5V5.5M12 18.5V20.5M5.5 12H3.5M20.5 12H18.5M6.7 6.7L5.3 5.3M18.7 18.7L17.3 17.3M17.3 6.7L18.7 5.3M5.3 18.7L6.7 17.3M15.5 12A3.5 3.5 0 1 1 8.5 12A3.5 3.5 0 0 1 15.5 12Z"
+            />
+          </svg>
+          <span class="u-sr-only">{{ themeToggleLabel }}</span>
         </button>
-        <button class="button button--ghost shell__logout" type="button" @click="logout">
-          Abmelden
+        <button
+          class="button button--ghost shell__action-btn shell__logout"
+          aria-label="Abmelden"
+          title="Abmelden"
+          type="button"
+          @click="logout"
+        >
+          <svg aria-hidden="true" class="shell__icon" viewBox="0 0 24 24">
+            <path d="M15 7V4.5H5V19.5H15V17" />
+            <path d="M10 12H20" />
+            <path d="M17 9L20 12L17 15" />
+          </svg>
+          <span class="u-sr-only">Abmelden</span>
         </button>
       </div>
     </header>
 
     <main class="shell__main shell__main--compact">
-      <section class="shell__profile surface surface--soft">
-        <p class="eyebrow">Aktive Rolle</p>
-        <strong>{{ roleMeta.label }}</strong>
-        <p class="shell__muted">{{ roleMeta.description }}</p>
-        <p class="shell__muted">Angemeldet als {{ auth.user?.username || 'unbekannt' }}</p>
-      </section>
 
       <div class="shell__content">
         <slot />
